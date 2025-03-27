@@ -1,0 +1,96 @@
+name: CMake on multiple platforms
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      # Set fail-fast to false to ensure that feedback is delivered for all matrix combinations.
+      fail-fast: false
+
+      # Set up a matrix to run the following configurations:
+      # 1. Windows with MSVC
+      # 2. Linux with GCC
+      # 3. Linux with Clang
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        build_type: [Release]
+        c_compiler: [gcc, clang, cl]
+        include:
+          - os: windows-latest
+            c_compiler: cl
+            cpp_compiler: cl
+          - os: ubuntu-latest
+            c_compiler: gcc
+            cpp_compiler: g++
+          - os: ubuntu-latest
+            c_compiler: clang
+            cpp_compiler: clang++
+        exclude:
+          - os: windows-latest
+            c_compiler: gcc
+          - os: windows-latest
+            c_compiler: clang
+          - os: ubuntu-latest
+            c_compiler: cl
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set reusable strings
+      # Define common directories and strings used in the workflow.
+      id: strings
+      shell: bash
+      run: |
+        echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+
+    - name: Configure CMake
+      # Configure CMake in the 'build' subdirectory with the specified compilers.
+      run: >
+        cmake -B ${{ steps.strings.outputs.build-output-dir }}
+        -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+        -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        -S ${{ github.workspace }}
+
+    - name: Build
+      # Build the project.
+      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
+
+    - name: Test
+      working-directory: ${{ steps.strings.outputs.build-output-dir }}
+      # Run tests using ctest.
+      run: ctest --build-config ${{ matrix.build_type }}
+
+    - name: Run Executable with Arguments
+      working-directory: ${{ steps.strings.outputs.build-output-dir }}
+      shell: bash
+      run: |
+        # Set executable name based on OS
+        executable="associative"  # Base executable name
+        
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          executable="associative.exe"  # Add .exe for Windows
+          executable_path="${{ github.workspace }}\\build\\${{ matrix.build_type }}\\$executable"  # Path for Windows
+        else
+          executable_path="${{ github.workspace }}/build/$executable"  # Path for Linux/macOS
+        fi
+        
+        # Command-line arguments (adjust as needed)
+        row_col_argument="--row 1000 --col 1000"  # Example row/col argument
+
+        # Check if the file exists before trying to run it
+        echo "Checking if executable exists: $executable_path"
+        if [ -f "$executable_path" ]; then
+          echo "Executable found, running it"
+          "$executable_path" $row_col_argument
+        else
+          echo "Executable not found: $executable_path"
+          exit 1  # Fail if the executable isn't found
+        fi
