@@ -51,7 +51,7 @@ void pin_to_core(int core_id) {
         CPU_ZERO(&cpuset);
         CPU_SET(core_id, &cpuset);
         if (sched_setaffinity(0, sizeof(cpu_set_t), &cpuset) == -1) {
-            zen::log(zen::color::red("Failed to pin to core " + std::string(core_id) + " (Linux)"));
+            zen::log(zen::color::red("Failed to pin to core " + std::to_string(core_id) + " (Linux)"));
         } else {
             zen::log("Pinned to core ", core_id, " (Linux)");
         }
