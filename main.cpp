@@ -7,6 +7,7 @@
 #include "cache_info.h"
 #include "kaizen.h"
 
+#define NOMINMAX
 #ifdef __linux__
     #include <sched.h>
     #include <unistd.h>
